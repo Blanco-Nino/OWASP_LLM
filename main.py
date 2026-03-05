@@ -170,7 +170,7 @@ def main():
         nargs=2,
         action="append",
         metavar=("KEY", "VALUE"),
-        help="Set a template variable (repeatable), e.g. --var target_app MyApp",
+        help="Set a template variable (repeatable). With --randomize, use value1|value2|value3 to pick one per prompt.",
     )
 
     args = parser.parse_args()
