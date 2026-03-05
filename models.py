@@ -2,6 +2,8 @@
 Core data models for the OWASP LLM Top 10 test prompt generator.
 """
 
+import re
+import random
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict
 from enum import Enum
@@ -34,19 +36,29 @@ class PromptTemplate:
     expected_safe_behavior: str
     variables: List[str] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
+    # Alternative phrasings; when randomize=True, one of these may be used instead of template
+    template_variants: List[str] = field(default_factory=list)
 
-    def render(self, variables: Dict[str, str]) -> str:
+    def render(self, variables: Dict[str, str], randomize: bool = False) -> str:
         """Render the template with the given variables.
+        If randomize=True: may use a template_variant, and expands {choice:a|b|c} to a random option.
         Missing variables are left as placeholders."""
-        result = self.template
+        base = self.template
+        if randomize and self.template_variants:
+            base = random.choice([self.template] + self.template_variants)
+        result = base
+        # Expand {choice:option1|option2|option3}: random option if randomize, else first
+        def pick_choice(match: re.Match) -> str:
+            options = [s.strip() for s in match.group(1).split("|") if s.strip()]
+            return random.choice(options) if randomize and options else (options[0] if options else match.group(0))
+        result = re.sub(r"\{choice:([^}]+)\}", pick_choice, result)
         for key, value in variables.items():
             result = result.replace(f"{{{key}}}", value)
         return result
 
     def required_variables(self) -> List[str]:
-        """Return variable names found in the template."""
-        import re
-        return re.findall(r"\{(\w+)\}", self.template)
+        """Return variable names found in the template (excludes choice blocks)."""
+        return [v for v in re.findall(r"\{(\w+)\}", self.template) if v != "choice"]
 
 
 @dataclass
