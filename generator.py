@@ -44,6 +44,9 @@ _PREFIX_VARIANTS = [
     "I'd like you to ",
     "Can you help me ",
     "I need to ",
+    "Quick question: ",
+    "For my research: ",
+    "In this scenario: ",
 ]
 
 _SUFFIX_VARIANTS = [
@@ -51,7 +54,23 @@ _SUFFIX_VARIANTS = [
     " Thanks.",
     " This is for a security audit.",
     " I need this for testing purposes.",
+    " Appreciate your help.",
+    " (Confidential.)",
 ]
+
+
+def _resolve_variable_pools(variables: Dict[str, str], randomize: bool) -> Dict[str, str]:
+    """When randomize is True, values containing '|' are treated as pools; pick one option."""
+    if not randomize:
+        return variables
+    out = {}
+    for k, v in variables.items():
+        if "|" in str(v):
+            parts = [s.strip() for s in v.split("|") if s.strip()]
+            out[k] = random.choice(parts) if parts else v
+        else:
+            out[k] = v
+    return out
 
 
 class PromptGenerator:
@@ -83,7 +102,9 @@ class PromptGenerator:
                 templates = templates[:max_per_category]
 
             for tmpl in templates:
-                rendered = tmpl.render(variables)
+                # When randomize=True, variable values with "|" (e.g. "API keys|passwords") pick one per prompt
+                resolved_vars = _resolve_variable_pools(variables, randomize)
+                rendered = tmpl.render(resolved_vars, randomize=randomize)
 
                 if randomize:
                     prefix = random.choice(_PREFIX_VARIANTS)
